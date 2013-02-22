@@ -40,6 +40,7 @@ function loadInContentPanel(uri, legend) {
         <div style="float: left; width: 20%%;">
         <fieldset><legend>What do you want to see?</legend>
             <p><ul>
+                %(screenshotLink)s
                 <li><a onclick="return loadInContentPanel('/fs/tmp/ks.cfg','Kickstart File')" href="/fs/tmp/ks.cfg">kickstart file</a></li>
 
                 <li><a onclick="return loadInContentPanel('/fs/mnt/sysimage/root/ks-post.log','Kickstart %%post Script Log')" href="/fs/mnt/sysimage/root/ks-post.log">%%post log</a></li>
@@ -71,9 +72,15 @@ function loadInContentPanel(uri, legend) {
     <i style="font-size: 80%%">Kickstart Debugger, written by Schlomo Schapiro. Licensed under the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public License</a>. See my <a href="http://blog.schlomo.schapiro.org">BLOG</a> for news and updates.</i>
 </body>
 </html>
-
-                
-                
+                ''',
+                "/screenshot" : u'''\
+<html>
+<head><title>%(host)s - Kickstart Debugger Screenshot</title>
+</head>
+<body>
+<img style="cursor:pointer;" onclick="this.src=this.src;" src="%(screenshotUrl)s"/>
+</body>
+</html>
                 ''',
                 "/favicon.ico.mimetype":"image/icon",
                 "/favicon.ico":base64.decodestring('''\
@@ -200,6 +207,11 @@ class KickstartDebuggerRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler)
         '''Build a dictionary with some data that can be used in builtinPages '''
         replacements = {}
         replacements["host"] = KickstartDebuggerRequestHandler.server_name
+        replacements["screenshotUrl"] = options.screenshotUrl
+        if options.screenshotUrl:
+            replacements["screenshotLink"] = '''<li><a onclick="return loadInContentPanel('/screenshot','Screenshot')" href="/screenshot">Screenshot</a></li>'''
+        else:
+            replacements["screenshotLink"] = ""
         replacements["error"] = ""
         error_file = "/dev/kickstart_debugger_error.txt"
         if os.path.isfile(error_file):
@@ -218,6 +230,7 @@ class KickstartDebuggerRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler)
         '''Serve a GET request'''
         f = None
         f_in = None
+        # disable caching, found in http://stackoverflow.com/questions/49547/making-sure-a-web-page-is-not-cached-across-all-browsers
         if self.path in builtinPages:
             f = StringIO()
             f.write(builtinPages[self.path] % self.getReplacements())
@@ -277,6 +290,12 @@ class KickstartDebuggerRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler)
         """Serve a HEAD request."""
         self.doGET(True)
         
+    def end_headers(self):
+        """Send standard headers and end header sending"""
+        self.send_header("Cache-Control","no-cache, no-store, must-revalidate")
+        self.send_header("Pragma","no-cache")
+        self.send_header("Expires:","0")
+        SimpleHTTPServer.SimpleHTTPRequestHandler.end_headers(self)
         
 if __name__ == "__main__":
     usage='''Kickstart Debugger is a simple web tool meant to run inside a kickstart/anaconda
@@ -288,6 +307,7 @@ installation system.'''
 
     parser = optparse.OptionParser(usage=usage,version=__version__)
     parser.add_option("-p","--port",dest="listenPort",default="80",type="int",metavar="PORT",help="Listening port for web server [%default]")
+    parser.add_option("-s","--screenshot",dest="screenshotUrl",default="",type="string",metavar="SCREENSHOT",help="URL to screenshot")
     options, arguments = parser.parse_args()
 
     os.chdir("/")        
