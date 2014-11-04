@@ -41,7 +41,7 @@ function loadInContentPanel(uri, legend) {
         <fieldset><legend>What do you want to see?</legend>
             <p><ul>
                 %(screenshotLink)s
-                <li><a onclick="return loadInContentPanel('/fs/tmp/ks.cfg','Kickstart File')" href="/fs/tmp/ks.cfg">kickstart file</a></li>
+                <li><a onclick="return loadInContentPanel('/fs/%(ks_file)s','Kickstart File')" href="/fs/%(ks_file)s">kickstart file</a></li>
 
                 <li><a onclick="return loadInContentPanel('/fs/mnt/sysimage/root/ks-post.log','Kickstart %%post Script Log')" href="/fs/mnt/sysimage/root/ks-post.log">%%post log</a></li>
                 <li><a onclick="return loadInContentPanel('/fs/tmp/anaconda.log','Anaconda log file')" href="/fs/tmp/anaconda.log">anaconda.log</a></li>
@@ -208,6 +208,21 @@ class KickstartDebuggerRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler)
         replacements = {}
         replacements["host"] = KickstartDebuggerRequestHandler.server_name
         replacements["screenshotUrl"] = options.screenshotUrl
+
+        ks_file_candidates = [
+            '/tmp/ks.cfg',
+            '/run/install/ks.cfg'
+        ]
+        ks_file = None
+        for file in ks_file_candidates:
+            if os.path.isfile(file):
+                ks_file = file
+
+        if ks_file is not None:
+            replacements["ks_file"] = file
+        else:
+            replacements["ks_file"] = "/tmp/false"
+
         if options.screenshotUrl:
             replacements["screenshotLink"] = '''<li><a onclick="return loadInContentPanel('/screenshot','Screenshot')" href="/screenshot">Screenshot</a></li>'''
         else:
